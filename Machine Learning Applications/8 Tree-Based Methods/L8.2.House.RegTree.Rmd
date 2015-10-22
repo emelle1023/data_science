@@ -1,5 +1,5 @@
 ---
-title: "Housing Prices Prediction"
+title: "Predict Housing Prices using Regression Tree"
 output: html_document
 ---
 
