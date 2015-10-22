@@ -1,20 +1,92 @@
 ---
-title: "Boosting"
+title: "Predict Housing Prices using Boosting"
 output: html_document
 ---
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+## Synopsis
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+To check and predict housing prices using Boosting, we will make comparsion to other Tree models.
+
+## Analysis
+
+### Loading libraries
+
+```{r, results='hide', message=FALSE, warning=FALSE}
+library(MASS) # For the Boston dataset
+library(gbm)
+```
+
+### Run boosted Regression Tree 
+
+* We will use `gmb` package to fit boosted regression trees.
+* The `gbm()` options will be `distribution="gaussian"` since this is a regression problem.
+* For a binary classification problem, we would use `distribution="bernoulli"`. 
+* The argument `n.trees=5000` indicates that we want 5000 trees.
+* The option `interaction.depth=4` limits the depth of each tree.
 
 ```{r}
-summary(cars)
+set.seed(1)
+train = sample(1:nrow(Boston), nrow(Boston)/2) # 50% of random data
+boston.test <- Boston[-train,"medv"] # The response 
+
+boost.boston <- gbm(medv~., data=Boston[train,],
+                    distribution="gaussian",
+                    n.trees=5000,
+                    interaction.depth=4)
 ```
 
-You can also embed plots, for example:
+### Influrence statistics of Boosting Regression Tree
 
-```{r, echo=FALSE}
-plot(cars)
+The summary() function produces a relative influence plot and also outputs the relative influence statistics.
+
+```{r}
+summary(boost.boston)
+```
+We see that `lstat` and `rm` are by far the most important variables. `lstat` is not quite in the relative influence plot.
+
+
+### Plots of Marginal Effect
+
+The plot illustrate the marginal effect of `lstat` and `rm` on the response after integrating out the other variables. 
+
+In this case, as we might expect, median house prices are increasing with `rm` and decreasing with `lstat`.
+
+```{r}
+par(mfrow=c(1,2))
+plot(boost.boston,i="rm")
+plot(boost.boston,i="lstat")
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+### Predict using Boosted Regression Tree
+
+```{r}
+yhat.boost <- predict(boost.boston, newdata=Boston[-train,], n.trees=5000)
+mean((yhat.boost-boston.test)^2)
+```
+
+The test MSE obtained is 11.8; similar to the test MSE for random forests and superior to that for bagging.
+
+### Run Boosting Regression Tree using different Shrinkage $\lambda=2$
+
+We can perform boosting with a different value of the shrinkage parameter $\lambda$. The default
+value is 0.001, but this is easily modified. Here we take $\lambda$ = 0.2.
+
+```{r}
+boost.boston <- gbm(medv~., data=Boston[train,],
+                    distribution="gaussian",
+                    n.trees=5000,
+                    interaction.depth=4,
+                    shrinkage=0.2,
+                    verbose=F)
+```
+
+### Predict Boosting Regression Tree with Shrinkage $\lambda=2$
+
+```{r}
+yhat.boost=predict(boost.boston,newdata=Boston[-train,],n.trees=5000)
+mean((yhat.boost-boston.test)^2)
+```
+
+
+In this case, using $\lambda=0.2$ leads to a slightly lower test MSE than $\lambda=0.001$.
+
