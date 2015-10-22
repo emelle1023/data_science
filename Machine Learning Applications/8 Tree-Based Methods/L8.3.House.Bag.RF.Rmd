@@ -1,5 +1,5 @@
 ---
-title: "Bagging and Random Forests"
+title: "Predict Housing Prices using Bagging and Random Forests"
 output: html_document
 ---
 
