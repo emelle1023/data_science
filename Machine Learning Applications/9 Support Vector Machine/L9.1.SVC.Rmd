@@ -1,0 +1,144 @@
+---
+title: "Support Vector Classifier"
+output: html_document
+---
+
+Simulate Support Vector Classifier with a normal distribution.
+
+```{r}
+set.seed(1)
+x <- matrix(rnorm(20*2), ncol=2)
+y <- c(rep(-1, 10), rep(1, 10))
+
+# to seperate x values where y==1 or y==-1
+x[y==1,] <- x[y==1,] + 1 # Just add 1 to x when y==1
+```
+
+check if the classes are linearly seperable
+
+```{r}
+plot(x, col=(3-1))
+```
+
+It looks like it is not.
+
+Next, fit the support vector classifier. We must encode the response as a factor variable. We also need to create a data frame.
+
+```{r}
+dat <- data.frame(x=x, y=as.factor(y))
+library(e1071)
+svmfit <- svm(y~., data=dat, kernel="linear", cost=1, scale=FALSE)
+plot(svmfit, dat)
+```
+
+We treat this as a linear model. support vector are crosses and there are 7 of them.
+
+To determine the identity of the 7 support vectors.
+
+```{r}
+svmfit$index
+```
+
+They are the position of the observation.
+
+To get the basic information
+
+```{r}
+summary(svmfit)
+```
+
+The summary tells us we use `cost=10` , and there are 7 support vectors, four in noe class and 3 in the other.
+
+If we use a smaller value of cost
+
+```{r}
+svmfit <- svm(y~., data=dat, kernel = "linear", cost=0.1, scale=FALSE)
+plot(svmfit, dat)
+svmfit$index
+```
+
+We obtain a larger number of of support vectors, because the margin is now wider. 
+
+We can also perfrom cross-validation using `tune()`
+
+We can also compare SVM with a linear kernel, using a range of values of the `cost` parameter.
+
+```{r}
+set.seed(1)
+tune.out <- tune(svm, y~., data=dat, kernel="linear", 
+              ranges=list(cost=c(0.001, 0.01, 0.1, 1.5, 10, 100)))
+```
+
+We can check the cross-validation errors for each of these models using `command`
+
+```{r}
+summary(tune.out)
+```
+
+
+We see that `cost=0.1` results in the lowest cross-validation error rate. The `tune()` function stores the best model obtained, which can be accessed as follows.
+
+We can simply find the best model as such
+
+```{r}
+bestmod <- tune.out$best.model
+summary(bestmod)
+```
+
+The `predict()` function can be used to predict the class label on a set of test observations, at any given value of the `cost` parameter. We begin by generating a test data set.
+
+```{r}
+xtest <- matrix(rnorm (20*2), ncol =2)
+ytest <- sample(c(-1,1) , 20, rep=TRUE)
+xtest[ytest==1 ,] <- xtest[ytest==1,] + 1
+testdat <- data.frame(x=xtest , y=as.factor(ytest))
+```
+
+We will use the best model obtained through cross-validation in order to make predictions.
+
+```{r}
+ypred <- predict(bestmod, testdat)
+table(predict=ypred, truth=testdat$y)
+```
+
+With this value of cost, 19 of the test observations are correctly classified. What if we had insted used `cost=0.01`
+
+```{r}
+svmfit <- svm(y~., data=dat, kernel="linear", cost=0.01, scale=FALSE)
+ypred <- predict(svmfit,testdat)
+table(predict=ypred, truth=testdat$y)
+```
+
+In this case one additional observation is misclassified.
+
+Now consider a situation in which the two classes are linearly separable. Then we can find a separating hyperplane using the `svm()` function. We first further separate the two classes in our simulated data so that they are linearly separable.
+
+```{r}
+x[y==1,] <- x[y==1,] + 0.5
+plot(x, col=(y+5)/2, pch=19)
+```
+
+We cannot barely seperate them with a linear straight line.
+
+We fit the support vector classifier and plot the resulting hyperplane, using a very large value of `cost` and so no observations are misclassified.
+
+```{r}
+dat <- data.frame(x=x,y=as.factor(y))
+svmfit <- svm(y~., data=dat, kernel="linear", cost=1e5)
+summary(svmfit)
+plot(svmfit, dat)
+```
+
+No training errors were made and only three support vectors were used. However, we can see from the figure that the margin is very narrow (because the observations that are not support vectors, indicated as circles, are very close to the decision boundary). Doesn't indicate which 3 vectors they are.
+
+It seems likely that this model will perform poorly on test data.
+
+```{r}
+svmfit <- svm(y~., data=dat, kernel="linear", cost=1)
+summary(svmfit)
+plot(svmfit,dat)
+```
+
+Using `cost=1`, we misclassify a training observation, but we also obtain a much wider margin and make use of seven support vectors. It seems likely that this model will perform better on test data than the model with `cost=1e5`.
+
+Better to have a slightly larger `cost.`

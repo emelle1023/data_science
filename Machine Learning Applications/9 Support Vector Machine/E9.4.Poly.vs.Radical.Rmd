@@ -1,0 +1,166 @@
+---
+title: "Radial/Polynomial kernels of SVM VS Linear SVC"
+output: html_document
+---
+
+## Synopsis 
+To show a support vector machine with a polynomial kernel (with degree greater than 1) or a
+radial kernel will outperform a support vector classifier. 
+
+## Analysis
+
+### Loading libraries
+
+The library `e1071` consists of relevant SVM functions necessary for the necessary.
+
+```{r}
+library(e1071)
+```
+
+### Linear Support Vector Classifier Approach
+
+Create a random initial dataset which lies along the parabola  $y = 3 x^2 + 4$. We will then seperate the two classes by translating them along Y-axis.
+
+```{r}
+set.seed(131)
+x = rnorm(100)
+y = 3 * x^2 + 4 + rnorm(100)
+train = sample(100, 50)
+
+# Seperate the training and testing
+y[train] = y[train] + 3 # 50 training data
+y[-train] = y[-train] - 3 # 50 testing data
+```
+
+We created 100 observations with 50 training and 50 testing. We then plot the training dataset
+
+#### Support Vector Classifier plot
+
+```{r}
+# Plot using different colors
+plot(x[train], y[train], pch="+", lwd=4, col="red", 
+     ylim=c(-4, 20), xlab="X", ylab="Y")
+
+# add the extra testing data
+points(x[-train], y[-train], pch="o", lwd=4, col="blue") 
+```
+
+The plot clearly shows non-linear straight line separation beween training and testing. 
+
+We now create both train and test dataframes by taking half of positive and negative classes and creating a new z vector of 0 and 1 for classes for response.
+
+
+```{r}
+set.seed(315)
+z = rep(0, 100)
+z[train] = 1 # All the training response is 1
+
+# Take 25 observations each from train and -train for the final training for analysis
+final.train = c(sample(train, 25),
+                sample(setdiff(1:100, train), 25))
+
+# data.train is the same as final.train
+data.train = data.frame(x=x[final.train], y=y[final.train], 
+                        z=as.factor(z[final.train]))
+
+# data.test is the rest of final.train
+data.test = data.frame(x=x[-final.train], y=y[-final.train], 
+                       z=as.factor(z[-final.train]))
+
+# library(e1071)
+svm.linear = svm(z~., data=data.train, kernel="linear", cost=10)
+```
+
+For Support Vector Classifier, We use a linear technique to seperate them in the `svm` function.
+
+#### Linear Support Vector Classifier Boundary Seperation
+
+```{r}
+plot(svm.linear, data.train)
+```
+
+#### Linear Support Vector Classifier training error
+
+To determine the training error.
+
+```{r}
+table(z[final.train], predict(svm.linear, data.train))
+```
+
+The plot shows the linear boundary. The classifier makes 10 classification errors on train data.
+
+## Support Vector Machine with polynomial kernel with `cost=10`
+
+```{r}
+set.seed(32545)
+svm.poly = svm(z~., data=data.train, 
+               kernel="polynomial", cost=10)
+```
+
+#### Plot of Support Vector Machine polynomial
+
+```{r}
+plot(svm.poly, data.train)
+```
+
+It is difficult to see how good it is with the training data.
+
+#### Polynomail Support Vector Machine training Error
+
+```{r}
+table(z[final.train], predict(svm.poly, data.train))
+```
+
+This is a default polynomial kernel with degree 3. It makes 15 errors on train data. It doesn't seem good but after all, it is the testing data error that counts.
+
+## Support Vector with Radial basis Kernel of `gamma=1`
+
+Finally, we train an SVM with radial basis kernel with gamma of 1.
+
+```{r}
+set.seed(996)
+svm.radial = svm(z~., data=data.train, kernel="radial", gamma=1, cost=10)
+```
+
+#### Radial Kernel Support Vector Machine plot
+
+```{r}
+plot(svm.radial, data.train)
+```
+
+A different interpretation to classify
+
+#### Radial Kernel Support Vector Machine Training Error
+
+```{r}
+table(z[final.train], predict(svm.radial, data.train))
+```
+
+This Support Vector Machine classifier perfectly classifies train data! 
+
+Here are how the test errors look like.
+
+
+## Comparison of testset plots for Linear, Polynomial and Radial Kernel 
+
+```{r}
+plot(svm.linear, data.test)
+plot(svm.poly, data.test)
+plot(svm.radial, data.test)
+```
+
+We will compare the actual Testing Error rate to determine what model has a better accurate fit, as the plot also shows the boundary and margin.
+
+## Comparision of testset error for linear, Polynomial and Radial Kernel
+
+```{r}
+table(z[-final.train], predict(svm.linear, data.test))
+table(z[-final.train], predict(svm.poly, data.test))
+table(z[-final.train], predict(svm.radial, data.test))
+```
+
+In summary, the tables show that linear, polynomial and radial basis kernels classify 6, 14, and 0 test points incorrectly respectively. Radial basis kernel is the best and has a zero test misclassification error.
+
+# Conclusion
+
+We conclude that for a polynomial seperation, radial basis kernel may produce the best outcome and polynomial may not even work for a parabolic function of degree of 2. But we may compare them all before we come to a conclusion.
