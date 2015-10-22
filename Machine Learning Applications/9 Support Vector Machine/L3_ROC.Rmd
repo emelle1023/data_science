@@ -1,0 +1,81 @@
+---
+title: "ROC Curves"
+output: html_document
+---
+
+Use `ROCR` package to produce ROC Curves with a custom short function and load all `svm` packages
+
+```{r, results='hide'}
+library(ROCR)
+library(e1071)
+```
+
+```{r}
+rocplot=function(pred, truth, ...) {
+    predob = prediction(pred, truth)
+    perf = performance(predob, "tpr", "fpr")
+    plot(perf,...)
+}
+```
+
+Simulate the data and the data frame
+
+```{r}
+set.seed(1)
+x=matrix(rnorm(200*2), ncol=2)
+
+# To seperate X values in non-linear way
+x[1:100,] <- x[1:100,] + 2
+x[101:150,] <- x[101:150,] - 2
+
+y <- c(rep(1,150), rep(2,50))
+dat <- data.frame(x=x, y=as.factor(y)) # only works with a data frame
+train <- sample(200, 100) # 100 samples between 0 to 200, good way to get the training
+```
+
+In order to obtain the fitted values for a given SVM model fit, we use decision.values=TRUE when fitting svm(). Then the `predict()` function will output the fitted values. This can apply to both SVMs and support vector classifiers.
+
+You just create a training dataset.
+
+```{r}
+svmfit.opt <- svm(y~., data=dat[train,], 
+                  kernel="radial",gamma=2, cost=1,decision.values=T)
+fitted <- attributes(predict(svmfit.opt,dat[train,],
+                             decision.values=TRUE))$decision.values
+```
+Now we can produce the ROC plot.
+
+```{r}
+# par(mfrow=c(1,2))
+rocplot(fitted,dat[train,"y"], main="Training Data")
+```
+
+SVM appears to be producing accurate predictions. By increasing $\gamma$, we can produce a more flexible fit and generate further improvements in accuracy.
+
+You need to include the previous code in this block as well.
+
+```{r}
+rocplot(fitted,dat[train,"y"], main="Training Data")
+
+svmfit.flex <- svm(y~., data=dat[train,], 
+                   kernel="radial",gamma=50, cost=1, decision.values=T)
+fitted <- attributes(predict(svmfit.flex,dat[train,],decision.values=T))$decision.values
+rocplot(fitted, dat[train,"y"], add=T, col="red")
+```
+
+The red is basically perfect but maybe overfit as it is only on the training data. We perfer prediction accuracy on the test data.
+
+use model with $\gamma=2$ appears to provide the most accurate results.
+
+
+```{r}
+fitted <- attributes(predict(svmfit.opt,dat[-train,],
+                             decision.values=T))$decision.values
+rocplot(fitted,dat[-train,"y"],main="Test Data")
+
+fitted <- attributes(predict(svmfit.flex,dat[-train,],
+                             decision.values=T))$decision.values
+rocplot(fitted,dat[-train,"y"],add=T,col="red")
+```
+
+I think the ROC curve is just to tell us if the model is good enough for the testing data by playing with `gamma`.

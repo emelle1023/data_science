@@ -1,0 +1,165 @@
+---
+title: "Car sales Classification"
+output: html_document
+---
+
+## Synopsis
+
+To analyse and classify the `Carseats` data set using Fitting Classification Tree.
+
+
+## Analysis
+
+### Load the data
+
+```{r}
+library(tree)
+```
+
+### Manipulate Data
+
+Since response variable is continous, we will turn it to binary
+
+```{r}
+library(ISLR)
+attach(Carseats)
+High=ifelse(Sales<=8,"No","Yes") # create a new binary variable based on Sales
+```
+
+### (1) Classification Tree Approach
+
+In order to fit the classification tree, we will put everything into a data frame, including the new variable
+
+```{r}
+Carseats=data.frame(Carseats,High)
+```
+
+In order to predict, we will fit the data in the `tree` function. It is noted that we are not seperate the data into training and testing set.
+
+```{r}
+tree.carseats=tree(High~.-Sales,Carseats)
+```
+To list the variables that are used as internal nodes in the tree, you use summary
+
+```{r}
+summary(tree.carseats)
+```
+
+We see that the training Error rate is at 9%.
+
+The residual mean deviance reported is 400-27=373
+
+#### Graphical Display of Tree
+
+One of the most attractive properties of trees is that they can be graphically displayed. We use the `plot()` function to display the tree structure, and the `text()` function to display the node labels.
+
+```{r}
+plot(tree.carseats)
+text(tree.carseats,pretty=0) # includes to include category names
+```
+
+The most important indicator of Sales appears to be shelving location (The top one).
+
+#### Tree name objects
+
+Just another way to shoe the tree.
+
+```{r}
+tree.carseats
+```
+
+### (2) Classification Tree Approach using both Training and Testing
+
+In order to properly evaluate the performance of a classification tree onvthese data, we must estimate the test error.
+
+We split the observations into a training set and a test set, build the tree using the training set, and evaluate its performance on the test data.
+
+
+```{r}
+set.seed(2)
+train <- sample(1:nrow(Carseats), 200) # 200 for training
+Carseats.test <- Carseats[-train,] # The rest is for testing
+High.test <- High[-train] # response variable on test (test shouldn't have a response)
+
+# Create a tree based on train
+tree.carseats <- tree(High~.-Sales, Carseats, subset=train) 
+
+# Evaludate the performance on the test dataset 
+tree.pred <- predict(tree.carseats, Carseats.test, type="class")
+
+# Confirm with the test error rate with the actual response and the predicted response
+table(tree.pred, High.test)
+(86+57)/200
+```
+
+This approach leads to correct predictions for around 71.5% of the locations in the test data set.
+
+### (3) Prune the tree to improve results (Cross-validation)
+
+We we perform cross-vlidation in order to determine the optimal level of tree complexity pruning.
+
+`cv.tree()` perform cross-validation.
+
+The use of `prune.misclass` to indicate we want the classification error rate to guide the cross-validation and pruning process.
+
+
+
+```{r}
+set.seed(3)
+cv.carseats <- cv.tree(tree.carseats, FUN=prune.misclass) 
+names(cv.carseats)
+cv.carseats
+```
+
+`dev` corresponds to the cross-validation error rate in this instance.
+
+The tree with 9 terminal nodes results in the lowest cross-validation error rate, with 50 cross-validation errors.
+
+#### Plot the error rate as a function of both `size` and `k`.
+
+```{r}
+par(mfrow=c(1,2))
+plot(cv.carseats$size, cv.carseats$dev, type="b")
+plot(cv.carseats$k, cv.carseats$dev, type="b")
+```
+
+#### Prune the Tree to nine-node
+
+We now apply the `prune.misclass()` function in order to prune the tree to prune. obtain the nine-node tree.
+
+```{r}
+prune.carseats <- prune.misclass(tree.carseats, best=9) # Specify 9 manually
+plot(prune.carseats)
+text(prune.carseats, pretty=0)
+```
+
+#### Test the prune tree on the dataset
+
+To check the prune tree preformance and again will use `predict()` dataset.
+
+```{r}
+tree.pred <- predict(prune.carseats, Carseats.test, type="class")
+table(tree.pred, High.test)
+(94+60)/200
+```
+
+Now 77% of the test observations are correctly classified, so not only has the pruning process produced a more interpretable tree, but it has also improved the classification accuracy.
+
+### (4) To increase `best` value
+
+If we increase the value of best, we obtain a larger pruned tree with lower classification accuracy. Maybe there is no need for this.
+
+```{r}
+prune.carseats <- prune.misclass(tree.carseats, best=15)
+plot(prune.carseats)
+text(prune.carseats, pretty=0)
+tree.pred <- predict(prune.carseats, Carseats.test, type="class")
+table(tree.pred, High.test)
+(86+62)/200
+```
+
+74% prediction error, a bigger tree but less accuracy.
+
+## Conclusion
+
+It looks Approach 3 is best.
