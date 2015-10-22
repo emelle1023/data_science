@@ -13,7 +13,7 @@ To fit a regression Tree Boston housing prices and a Regression Tree
 ### Load Regression library
 
 ```{r}
-library (tree)
+library(tree)
 ```
 
 ### Run Regression Tree
