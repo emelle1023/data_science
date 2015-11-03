@@ -1,0 +1,59 @@
+---
+title: "Baseball Salary Prediction using Forward and Backward Stepwise Selection"
+output: html_document
+---
+
+## Synopsis
+
+The idea is to apply the best Forward and Backward Stepwise selection approach and create a predictive model model on baseball player's Salary on the basis of various statistics associated with performance in the previous year.
+
+
+## Analysis
+
+### Missing value
+
+```{r}
+library(ISLR)
+# names(Hitters) # variablenames 
+# dim(Hitters)
+# sum(is.na(Hitters$Salary)) # total number of players without a recorded salary
+Hitters=na.omit(Hitters)
+# dim(Hitters)
+# sum(is.na(Hitters))
+```
+
+### Forward Backward Selection 
+
+Use `regsubsets()` function to perform forward stepwise or backward stepwise selection, using the argument `method="forward"` or `method="backward"`.
+
+```{r}
+library(leaps)
+regfit.fwd <- regsubsets(Salary~., data=Hitters, nvmax=19, method="forward")
+summary(regfit.fwd)
+regfit.bwd <- regsubsets(Salary~., data=Hitters, nvmax=19, method="backward")
+summary(regfit.bwd)
+```
+
+We see that using forward stepwise selection, the best one variable model contains only `CRBI`, and the best two-variable model additionally includes `Hits`. `CRBI` has asterisk for all 19 variables where `Hits` makes up 18 variables. Ultimately, we should really depend on coefficients for model selection.
+
+For this data, the best one-variable through six variable models are each identical for best subset and forward selection. So, both models work just in the same way.
+
+However, the best seven-variable models identified by forward stepwise selection, backward stepwise selection, and best subset selection are different.
+
+
+### Coefficient for Best model selection
+
+We have used 3 techniques to build our models but they don't always agree as indicated in the 7-variable models.
+
+```{r}
+regfit.full <- regsubsets(Salary~.,data=Hitters,nvmax=19)
+```
+
+
+```{r}
+coef(regfit.full,7) # Full Best model selection
+coef(regfit.fwd,7) # forward stepwise
+coef(regfit.bwd,7) # backward stepwise
+```
+
+So ultimately, It is OK to which one we choose to use.

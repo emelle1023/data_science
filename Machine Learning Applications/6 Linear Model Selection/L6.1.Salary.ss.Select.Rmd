@@ -1,0 +1,134 @@
+---
+title: "Baseball salary prediction model using Best Subset Selection"
+output: html_document
+---
+
+## Synopsis
+
+The idea is to apply the best subset selection approach and create a model that predicts a baseball player's Salary on the basis of various statistics associated with performance in the previous year.
+
+## Analysis
+
+Since the `Salary` variable is missing from some of the players. `is.na()` function is used to identify the missing observations.
+
+### Missing value
+
+```{r}
+library(ISLR)
+
+ # fix(Hitters)
+names(Hitters) # variablenames 
+
+dim(Hitters)
+sum(is.na(Hitters$Salary)) # total number of players without a recorded salary
+```
+
+Hence we see that Salary is missing for 59 players. The `na.omit()` function removes all of the rows that have missing values in any variable.
+
+```{r}
+Hitters=na.omit(Hitters)
+dim(Hitters)
+sum(is.na(Hitters))
+```
+
+We are omitting all the NA
+
+### Subset Selection 
+
+Use `regsubsets()` to perform best subregsubsets() set selection by identifying the best model that contains a given number of predictors.
+
+
+```{r}
+library(leaps)
+regfit.full <- regsubsets(Salary~.,Hitters)
+summary(regfit.full)
+```
+
+The asterisk indicates that a given variable is included in the corresponding model.
+
+This output indicates that the best two-variable model contains only `Hits` and `CRBI`. 
+
+
+### Subset Selection Full Model
+
+By default, regsubsets() only reports results up to the best eight-variable model. But the nvmax option can be used in order to return as many variables as are desired. Here we fit up to a 19-variable model.
+
+
+### Examine $R^2$, $RSS$, adjusted $R^2$, $C_p$, and $BIC$ on plots
+
+
+```{r}
+regfit.full <- regsubsets(Salary~.,data=Hitters,nvmax=19)
+reg.summary <- summary(regfit.full)
+```
+
+The `summary()` function also returns $R^2$, $RSS$, adjusted $R^2$, $C_p$, and $BIC$.
+
+We examine these to try to select the best overall model. 
+
+```{r}
+names(reg.summary)
+```
+
+For instance, we see that the $R^2$ statistic increases from 32%, when only one variable is included in the model, to almost 55%, when all variables are included. As expected, the $R^2$ statistic increases monotonically as more variables are included.
+
+So, more variables included, the more accurate the model it is. The plots indicate the same was well, where $RSS$ and Adjusted $R^2$ 
+
+```{r}
+reg.summary$rsq
+```
+
+```{r}
+par(mfrow=c(1,2))
+plot(reg.summary$rss, xlab="Number of Variables", ylab="RSS", type="l")
+plot(reg.summary$adjr2, xlab="Number of Variables", ylab="Adjusted RSq", type="l")
+```
+
+The `which.max()` function can be used to identify the location of the maximum point of a vector. We will now plot a red dot to indicate the model with the largest adjusted $R^2$ statistic.
+
+```{r}
+par(mfrow=c(1,2))
+plot(reg.summary$rss, xlab="Number of Variables", ylab="RSS", type="l")
+plot(reg.summary$adjr2, xlab="Number of Variables", ylab="Adjusted RSq", type="l")
+which.max(reg.summary$adjr2)
+points(11, reg.summary$adjr2[11], col="red", cex=2, pch=20)
+```
+
+
+In a similar fashion we can plot the $C_p$ and $BIC$ statistics, and indicate the models with the smallest statistic using `which.min()`
+
+```{r}
+par(mfrow=c(1,2))
+plot(reg.summary$cp, xlab="Number of Variables", ylab="Cp", type='l')
+which.min(reg.summary$cp)
+points(10,reg.summary$cp[10],col="red",cex=2,pch=20)
+which.min(reg.summary$bic)
+plot(reg.summary$bic,xlab= "Number of Variables",ylab="BIC", type='l')
+points(6,reg.summary$bic[6],col="red",cex=2,pch=20)
+```
+
+### Choose best model from full Subset selection model
+
+Use `regsubsets()` function of its built-in `plot()` command to display the selected variables for the best model with a given number of predictors, ranked according to the $BIC$, $C_p$, adjusted $R^2$, or $AIC$. 
+
+```{r}
+plot(regfit.full,scale="r2")
+plot(regfit.full,scale="adjr2")
+plot(regfit.full,scale="Cp")
+plot(regfit.full,scale="bic")
+```
+
+The top row of each plot contains a black square for each variable selected according to the optimal model associated with that statistic.
+
+For instance, we see that several models share a $BIC$ close to -150
+
+However, the model with the lowest $BIC$ is the six-variable model that contains only `AtBat`, `Hits`, `Walks`, `CRBI`, `DivisionW`, and `PutOuts`. This is the top row.
+
+We can use the `coef()` function to see the coefficient estimates associated with this model.
+
+
+```{r}
+coef(regfit.full,6)
+```
+
+So even we are using the full model with 19 variables, Best Selection technique has been able to choose the best model with 6 variables.

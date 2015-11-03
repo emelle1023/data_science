@@ -1,0 +1,163 @@
+---
+title: "Predict Baseball player with Ridge Regression Approach"
+output: html_document
+---
+
+## Synopsis
+
+To predict Baseball player salary using Ridge Regression approach and compare the models with other selection techniques.
+
+We will use the `glmnet` package in order to perform ridge regression and the lasso. This function has slightly different syntax from other model-fitting functions in particular, we must pass in an x matrix as well as a y vector, and we do not use the $y \sim x$ syntax.
+
+## Handle Missing value
+
+```{r}
+library(ISLR)
+Hitters=na.omit(Hitters)
+```
+
+## Data Loading
+
+```{r}
+x=model.matrix(Salary~.,Hitters)[,-1]
+y=Hitters$Salary
+```
+
+The `model.matrix()` function is particularly useful for creating x; not only does it produce a matrix corresponding to the 19 predictors but it also automatically transforms any qualitative variables into dummy variables.
+
+
+## Ridge Regression
+
+If `alpha=0` then a ridge regression model is fit, and if `alpha=1` then a lasso model is fit.
+
+
+```{r, message=FALSE, warning=FALSE}
+library(glmnet)
+grid <- 10^seq(10, -2, length=100) # alpha=0 
+ridge.mod <- glmnet(x, y, alpha=0, lambda=grid)
+```
+
+By default the `glmnet()` function performs ridge regression for an automatically selected range of $\lambda$ values.
+
+we have chosen to implement the function over a grid of values ranging from $\lambda = 10^{10}$ to $\lambda = 10^{-2}$, essentially covering the full range of scenarios from the null model containing only the intercept, to the least squares fit.
+
+As we will see, we can also compute model fits for a particular value of $\lambda$ that is not one of the original grid values.
+
+Note that by default, the glmnet() function standardizes the variables so that they are on the same scale. To turn off this default setting, use the argument `standardize=FALSE`.
+
+
+
+It is a $20 \times 100$ matrix, with 20 rows and 100 columns, one for each value of $\lambda$.
+
+```{r}
+dim(coef(ridge.mod)) 
+```
+
+We expect the coefficient estimates to be much smaller, in terms of $l_2$ norm, when a large value of $\lambda$ is used, as compared to when a small value of $\lambda$ is used.
+
+These are the coefficients when $\lambda$ = 11,498, along with their $l_2$ norm:
+
+```{r}
+ridge.mod$lambda[50]
+coef(ridge.mod)[,50]
+sqrt(sum(coef(ridge.mod)[-1,50]^2))
+```
+
+In contrast, here are the coefficients when $\lambda$ = 705, along with their $l_2$ norm. Note the much larger $l_2$ norm of the coefficients associated with this smaller value of $\lambda$.
+
+```{r}
+ridge.mod$lambda[60]
+coef(ridge.mod)[,60]
+sqrt(sum(coef(ridge.mod)[-1,60]^2))
+```
+
+## To predict Ridge Regression
+
+```{r}
+predict(ridge.mod,s=50,type="coefficients")[1:20,]
+```
+
+
+## Training and Testing sets
+
+We now split the samples into a training set and a test set in order to estimate the test error of ridge regression and the lasso. There are two common ways to randomly split a data set.
+
+The first is to produce a random vector of `TRUE`, `FALSE` elements and select the observations corresponding to `TRUE` for the training data. The second is to randomly choose a subset of numbers between 1 and n.
+
+```{r}
+set.seed(1)
+train=sample(1:nrow(x), nrow(x)/2)
+test=(-train)
+y.test=y[test]
+```
+
+Next we fit a ridge regression model on the training set, and evaluate its MSE on the test set, using $\lambda$ = 4.
+
+## Predict for a test set
+
+Note the use of the predict() function again. This time we get predictions for a test set, by replacing `type="coefficients"` with the newx argument.
+
+```{r}
+ridge.mod=glmnet(x[train,],y[train],alpha=0,lambda=grid, thresh=1e-12)
+ridge.pred=predict(ridge.mod,s=4,newx=x[test,])
+mean((ridge.pred-y.test)^2)
+```
+
+The test MSE is 101037. Note that if we had instead simply fit a model with just an intercept, we would have predicted each test observation using the mean of the training observations. In that case, we could compute the test set MSE like this:
+
+```{r}
+mean((mean(y[train])-y.test)^2)
+```
+
+We could also get the same result by fitting a ridge regression model with a very large value of $\lambda$. Note that `1e10` means $10^{10}$.
+
+```{r}
+ridge.pred=predict(ridge.mod,s=1e10,newx=x[test,])
+mean((ridge.pred-y.test)^2)
+```
+
+So fitting a ridge regression model with $\lambda$ = 4 leads to a much lower test MSE than fitting a model with just an intercept.
+
+We now check whether there is any benefit to performing ridge regression with $\lambda$ = 4 instead of just performing least squares regression.
+
+Recall that least squares is simply ridge regression with $\lambda$ = 0.
+
+```{r}
+ridge.pred=predict(ridge.mod,s=0,newx=x[test,],exact=T)
+mean((ridge.pred-y.test)^2)
+lm(y~x, subset=train)
+predict(ridge.mod,s=0,exact=T,type="coefficients")[1:20,]
+```
+
+
+In general, if we want to fit a (unpenalized) least squares model, then we should use the lm() function, since that function provides more useful outputs, such as standard errors and p-values for the coefficients.
+
+In general, instead of arbitrarily choosing $\lambda$ = 4, it would be better to use cross-validation to choose the tuning parameter $\lambda$. We can do this using the built-in cross-validation function, `cv.glmnet()`.
+
+By default, the function `cv.glmnet()` performs ten-fold cross-validation, though this can be changed using the argument `nfolds`. The choice of cross-validation folds is random.
+
+```{r}
+set.seed(1)
+cv.out=cv.glmnet(x[train,],y[train],alpha=0)
+plot(cv.out)
+bestlam=cv.out$lambda.min
+bestlam
+```
+
+Therefore, we see that the value of $\lambda$ that results in the smallest crossvalidation error is 212.
+
+```{r}
+ridge.pred <- predict(ridge.mod, s=bestlam, newx=x[test,])
+mean((ridge.pred-y.test)^2)
+```
+
+This represents a further improvement over the test MSE that we got using $\lambda$ = 4.
+
+Finally, we refit our ridge regression model on the full data set, using the value of $\lambda$ chosen by cross-validation, and examine the coefficient estimates.
+
+```{r}
+out=glmnet(x,y,alpha=0)
+predict(out,type="coefficients",s=bestlam)[1:20,]
+```
+
+As expected, none of the coefficients are zero-ridge regression does not `perform variable selection!
