@@ -1,0 +1,74 @@
+---
+title: "Auto fitting with Validation Set Approach"
+output: html_document
+---
+
+## Synopsis
+
+We explore the use of the validation set approach in order to estimate the test error rates that result from fitting various linear models on the Auto data set.
+
+
+### Split the data for Cross-Validation
+
+We begin by using the sample() function to split the set of observations sample() into two halves
+
+```{r}
+library(ISLR)
+set.seed(1)
+train=sample(392,196)
+```
+
+
+### Linear Regression
+
+We then use the subset option in lm() to fit a linear regression using only the observations corresponding to the training set.
+
+
+```{r}
+lm.fit=lm(mpg~horsepower,data=Auto,subset=train)
+```
+
+### Predict Linear Regression
+
+we use the mean() function to calculate the MSE of the 196 observations in the validation set.
+
+```{r}
+attach(Auto)
+mean((mpg-predict(lm.fit,Auto))[-train]^2)
+```
+
+Therefore, the estimated test MSE for the linear regression fit is 26.14. We can use the poly() function to estimate the test error for the polynomial and cubic regressions.
+
+```{r}
+lm.fit2=lm(mpg~poly(horsepower,2),data=Auto,subset=train)
+mean((mpg-predict(lm.fit2,Auto))[-train]^2)
+
+lm.fit3=lm(mpg~poly(horsepower,3),data=Auto,subset=train)
+mean((mpg-predict(lm.fit3,Auto))[-train]^2)
+```
+
+These error rates are 19.82 and 19.78, respectively. If we choose a different training set instead, then we will obtain somewhat different errors on the validation set.
+
+
+### Different Validation Set
+
+```{r}
+set.seed(2)
+train=sample(392,196)
+
+lm.fit=lm(mpg~horsepower,subset=train)
+mean((mpg-predict(lm.fit,Auto))[-train]^2)
+
+lm.fit2=lm(mpg~poly(horsepower,2),data=Auto,subset=train)
+mean((mpg-predict(lm.fit2,Auto))[-train]^2)
+
+lm.fit3=lm(mpg~poly(horsepower,3),data=Auto,subset=train)
+mean((mpg-predict(lm.fit3,Auto))[-train]^2)
+```
+
+Using this split of the observations into a training set and a validation set, we find that the validation set error rates for the models with linear, quadratic, and cubic terms are 23.30, 18.90, and 19.26, respectively.
+
+## Conclusion
+
+The model that predicts mpg using a quadratic function of horsepower performs better than a model that involves only a linear function of horsepower, and there is little evidence in favor of a model that uses a cubic function of horsepower.
+

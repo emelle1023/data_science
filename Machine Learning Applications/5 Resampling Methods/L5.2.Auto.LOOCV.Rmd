@@ -1,0 +1,74 @@
+---
+title: "Auto fitting with Leave-One-Out Cross-Validation"
+output: html_document
+---
+
+## Synopsis
+
+The LOOCV estimate can be automatically computed for any generalized linear model.
+
+
+## Analysis
+
+```{r}
+library(ISLR)
+set.seed(1)
+train=sample(392,196)
+```
+
+we used the `glm()` function to perform logistic regression by passing in the `family="binomial"` argument. 
+
+But if we use `glm()` to fit a model without passing in the family argument, then it performs linear regression, just like the `lm()` function.
+
+### GLM function
+
+```{r, cache=TRUE}
+glm.fit=glm(mpg~horsepower,data=Auto)
+coef(glm.fit)
+```
+
+### LM function
+
+```{r, cache=TRUE}
+lm.fit=lm(mpg~horsepower,data=Auto)
+coef(lm.fit)
+```
+
+Both yield identical linear regression models.
+
+We will perform linear regression using the `glm()` function rather than the `lm()` function because the latter can be used together with `cv.glm()`. The `cv.glm()` function is part of the `boot` library.
+
+```{r, cache=TRUE}
+library(boot)
+glm.fit=glm(mpg~horsepower,data=Auto)
+cv.err=cv.glm(Auto,glm.fit)
+cv.err$delta
+```
+
+The `cv.glm()` function produces a list with several components. The two numbers in the delta vector contain the cross-validation results.
+
+In this case case the numbers are identical (up to two decimal places) and correspond to the LOOCV statistic. 
+
+Our cross-validation estimate for the test error is approximately 24.23.
+
+### Polynomial Fit
+
+We can repeat this procedure for increasingly complex polynomial fits.
+
+To automate the process, we use the for() function to initiate a for loop which iteratively fits polynomial regressions for polynomials of order i = 1 to i = 5, computes the associated cross-validation error, and stores it in the ith element of the vector cv.error. We begin by initializing the vector. This command will likely take a couple of minutes to run.
+
+
+```{r, cache=TRUE}
+library(boot)
+cv.error=rep(0,5)
+
+for (i in 1:5){
+ glm.fit=glm(mpg~poly(horsepower,i),data=Auto)
+ cv.error[i]=cv.glm(Auto,glm.fit)$delta[1]
+}
+
+cv.error
+```
+
+We see a sharp drop in the estimated test MSE between the linear and quadratic fits, but then no clear improvement from using higher-order polynomials.
+
