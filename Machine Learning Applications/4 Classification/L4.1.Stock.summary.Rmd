@@ -1,0 +1,44 @@
+---
+title: "The Stock Market Data"
+output: html_document
+---
+
+## Synopsis
+
+We will begin by examining some numerical and graphical summaries of the stock data. This data set consists of percentage returns for the S&P 500 stock index over 1,250 days, from the beginning of 2001 until the end of 2005.
+
+For each date, we have recorded 
+
+1. the percentage returns for each of the five previous trading days, `Lag1` through `Lag5`. 
+2. We have also recorded `Volume`, the number of shares traded on the previous day, in billions.
+3. `Today`, the percentage return on the date in question
+4. `Direction`, whether the market was Up or Down on this data.
+
+```{r, cache=TRUE}
+library(ISLR)
+names(Smarket)
+dim(Smarket)
+summary(Smarket)
+pairs(Smarket)
+```
+
+The `cor()` function produces a matrix that contains all of the pairwise correlations among the predictors in a data set.
+
+The first command below gives an error message because the `Direction` variable is qualitative. 
+
+```{r, cache=TRUE}
+# This will give you error, we skip this
+# cor(Smarket) 
+
+cor(Smarket[,-9])
+```
+
+As one would expect, the correlations between the lag variables and today's returns are close to zero. In other words, there appears to be little correlation between today's returns and previous days' returns.
+
+The only substantial correlation is between `Year` and `Volume`. By plotting the data we see that `Volume` is increasing over time. In other words, the average number of shares traded daily increased from 2001 to 2005.
+
+
+```{r, cache=TRUE}
+attach(Smarket)
+plot(Volume)
+```
